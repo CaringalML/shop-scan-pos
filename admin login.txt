@@ -1,0 +1,6 @@
+Link: http://localhost:3000/admin/login
+
+admin@shopscan.com
+
+password
+

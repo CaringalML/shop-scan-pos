@@ -1,17 +1,34 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './index.css';
+import { BrowserRouter } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 import App from './App';
-import reportWebVitals from './reportWebVitals';
+import { store } from './redux/store';
+import './styles/global.css';
+import setupAdmin from './utils/setupAdmin';
+
+// Initialize admin during application startup
+setupAdmin()
+  .then((adminId) => {
+    if (adminId) {
+      console.log("Admin setup complete with ID:", adminId);
+    }
+  })
+  .catch((error) => {
+    console.error("Admin setup failed:", error);
+  });
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+    <Provider store={store}>
+      <BrowserRouter>
+        <App />
+        <ToastContainer position="bottom-right" />
+      </BrowserRouter>
+    </Provider>
   </React.StrictMode>
 );
-
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
