@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { toast } from 'react-toastify';
+import { FaShoppingCart, FaSignOutAlt } from 'react-icons/fa';
+import 'boxicons/css/boxicons.min.css'; // Import Boxicons CSS
 
 import { logoutAdmin } from '../../../redux/slices/authSlice';
-import { clearCurrentCart } from '../../../redux/slices/cartSlice';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -12,7 +12,7 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector(state => state.auth);
-  const { currentCart, currentCartItems } = useSelector(state => state.cart);
+  const { currentCart } = useSelector(state => state.cart);
   
   // Check if current path is the homepage
   const isHomePage = location.pathname === '/';
@@ -23,15 +23,6 @@ const Navbar = () => {
   const handleLogout = () => {
     dispatch(logoutAdmin());
     navigate('/');
-  };
-  
-  const handleChangeCart = () => {
-    if (currentCartItems.length > 0) {
-      toast.warning('Please empty your current cart before switching to a new one.');
-    } else {
-      dispatch(clearCurrentCart());
-      navigate('/');
-    }
   };
 
   // For the homepage, show only the logo without navigation buttons
@@ -92,26 +83,31 @@ const Navbar = () => {
     );
   }
   
-  // For cart pages, show simple cart navigation
+  // For cart pages, show user navigation
   return (
     <nav className="navbar user-navbar">
       <div className="navbar-container">
-        <Link to={currentCart ? `/cart/${currentCart.cartId}` : '/'} className="navbar-logo">
+        <Link to="/" className="navbar-logo">
           ShopScan POS
         </Link>
         
-        {currentCart && (
-          <ul className="navbar-menu">
-            <li className="navbar-item">
-              <button
-                className="navbar-button"
-                onClick={handleChangeCart}
-              >
-                Change Cart
-              </button>
-            </li>
-          </ul>
-        )}
+        <ul className="navbar-menu">
+          {currentCart && (
+            <>
+              <li className="navbar-item">
+                <Link to={`/cart/${currentCart.cartId}`} className="navbar-link">
+                  <FaShoppingCart className="navbar-icon" />
+                  View Cart
+                </Link>
+              </li>
+              <li className="navbar-item">
+                <Link to="/" className="navbar-link">
+                  Change Cart
+                </Link>
+              </li>
+            </>
+          )}
+        </ul>
       </div>
     </nav>
   );
