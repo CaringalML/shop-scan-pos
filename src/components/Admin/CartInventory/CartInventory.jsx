@@ -12,6 +12,7 @@ import {
 import './CartInventory.css';
 
 // Confirmation Dialog Component
+const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
   if (!isOpen) return null;
 
   return (
@@ -353,6 +354,15 @@ const CartInventory = () => {
           </div>
         </div>
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDelete !== null}
+        title="Delete Cart"
+        message="Are you sure you want to delete this cart? This action cannot be undone."
+        onConfirm={() => handleDeleteCart(confirmDelete)}
+        onCancel={handleCancelDelete}
+      />
     </div>
   );
 };
