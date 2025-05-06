@@ -12,7 +12,6 @@ import {
 import './ProductInventory.css';
 
 // Confirmation Dialog Component
-const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
   if (!isOpen) return null;
 
   return (

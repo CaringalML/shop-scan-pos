@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { FaShoppingCart, FaSignOutAlt } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
 import { logoutAdmin } from '../../../redux/slices/authSlice';
