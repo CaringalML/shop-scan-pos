@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import Quagga from 'quagga';
-import { FaCamera, FaKeyboard, FaBarcode } from 'react-icons/fa';
 import { toast } from 'react-toastify';
+import 'boxicons/css/boxicons.min.css';
 
 import { getProductByBarcode } from '../../../redux/slices/productSlice';
 import { addItemToCart } from '../../../redux/slices/cartSlice';
@@ -15,10 +15,13 @@ const Scanner = ({ cartId }) => {
   const [manualEntry, setManualEntry] = useState(false);
   const [barcode, setBarcode] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [scannerMessage, setScannerMessage] = useState('');
+  const [detectionState, setDetectionState] = useState('idle'); // 'idle', 'detecting', 'success'
 
   const { currentProduct, loading: productLoading, error: productError } = useSelector(state => state.product);
   const { loading: cartLoading, error: cartError } = useSelector(state => state.cart);
 
+  // Clean up scanner on unmount
   useEffect(() => {
     return () => {
       if (isScanning) {
@@ -27,6 +30,7 @@ const Scanner = ({ cartId }) => {
     };
   }, [isScanning]);
 
+  // Handle errors
   useEffect(() => {
     if (productError) {
       toast.error(productError);
@@ -39,10 +43,19 @@ const Scanner = ({ cartId }) => {
     }
   }, [cartError]);
 
+  // Reset detection state when scanning stops
+  useEffect(() => {
+    if (!isScanning) {
+      setDetectionState('idle');
+      setScannerMessage('');
+    }
+  }, [isScanning]);
+
   const startScanner = () => {
     if (isScanning) return;
     
     setIsScanning(true);
+    setScannerMessage('Position barcode in the center of the camera');
     
     Quagga.init({
       inputStream: {
@@ -53,9 +66,21 @@ const Scanner = ({ cartId }) => {
           facingMode: "environment",
         },
       },
+      locator: {
+        patchSize: "medium",
+        halfSample: true
+      },
+      numOfWorkers: navigator.hardwareConcurrency || 4,
       decoder: {
         readers: ["ean_reader", "ean_8_reader", "code_128_reader", "code_39_reader", "upc_reader"],
+        debug: {
+          drawBoundingBox: true,
+          showFrequency: false,
+          drawScanline: true,
+          showPattern: true
+        }
       },
+      locate: true
     }, (err) => {
       if (err) {
         console.error(err);
@@ -66,16 +91,38 @@ const Scanner = ({ cartId }) => {
       
       Quagga.start();
       
+      // Add event listeners for real-time feedback
+      Quagga.onProcessed((result) => {
+        if (result) {
+          // Update UI based on detection result
+          if (result.boxes) {
+            setDetectionState('detecting');
+            setScannerMessage('Barcode detected! Hold steady...');
+          } else {
+            if (detectionState !== 'success') {
+              setDetectionState('idle');
+              setScannerMessage('Position barcode in the center of the camera');
+            }
+          }
+        }
+      });
+      
       Quagga.onDetected((result) => {
         if (result && result.codeResult) {
           const code = result.codeResult.code;
           
-          // Stop scanning after successful detection
-          stopScanner();
+          // Show success state
+          setDetectionState('success');
+          setScannerMessage(`Barcode read successfully: ${code}`);
           
-          // Set barcode and find product
-          setBarcode(code);
-          dispatch(getProductByBarcode(code));
+          // Stop scanning after successful detection
+          setTimeout(() => {
+            stopScanner();
+            
+            // Set barcode and find product
+            setBarcode(code);
+            dispatch(getProductByBarcode(code));
+          }, 500); // Short delay to see success state
         }
       });
     });
@@ -141,14 +188,14 @@ const Scanner = ({ cartId }) => {
           className={`mode-toggle ${!manualEntry ? 'active' : ''}`} 
           onClick={() => setManualEntry(false)}
         >
-          <FaCamera className="mode-icon" />
+          <i className='bx bx-camera'></i>
           Scan Barcode
         </button>
         <button 
           className={`mode-toggle ${manualEntry ? 'active' : ''}`} 
           onClick={() => setManualEntry(true)}
         >
-          <FaKeyboard className="mode-icon" />
+          <i className='bx bx-keyboard'></i>
           Manual Entry
         </button>
       </div>
@@ -157,12 +204,25 @@ const Scanner = ({ cartId }) => {
         <div className="scanner-section">
           <div 
             ref={scannerRef} 
-            className={`scanner-view ${isScanning ? 'active' : ''}`}
+            className={`scanner-view ${isScanning ? 'active' : ''} ${detectionState}`}
           >
             {!isScanning && (
               <div className="scanner-placeholder">
-                <FaBarcode className="placeholder-icon" />
+                <i className='bx bx-barcode'></i>
                 <p>Camera feed will appear here</p>
+              </div>
+            )}
+            {isScanning && (
+              <div className="scanner-guide">
+                <div className="scanner-corner top-left"></div>
+                <div className="scanner-corner top-right"></div>
+                <div className="scanner-corner bottom-left"></div>
+                <div className="scanner-corner bottom-right"></div>
+                {scannerMessage && (
+                  <div className={`scanner-message ${detectionState}`}>
+                    {scannerMessage}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -173,14 +233,14 @@ const Scanner = ({ cartId }) => {
                 className="btn btn-secondary scanner-btn" 
                 onClick={stopScanner}
               >
-                Stop Scanner
+                <i className='bx bx-stop'></i> Stop Scanner
               </button>
             ) : (
               <button 
                 className="btn btn-primary scanner-btn" 
                 onClick={startScanner}
               >
-                Start Scanner
+                <i className='bx bx-scan'></i> Start Scanner
               </button>
             )}
           </div>
@@ -235,8 +295,9 @@ const Scanner = ({ cartId }) => {
                   type="button" 
                   className="quantity-btn"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  aria-label="Decrease quantity"
                 >
-                  -
+                  <i className='bx bx-minus'></i>
                 </button>
                 <input
                   type="number"
@@ -251,8 +312,9 @@ const Scanner = ({ cartId }) => {
                   type="button" 
                   className="quantity-btn"
                   onClick={() => setQuantity(quantity + 1)}
+                  aria-label="Increase quantity"
                 >
-                  +
+                  <i className='bx bx-plus'></i>
                 </button>
               </div>
             </div>
