@@ -1,27 +1,65 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { FaShoppingCart, FaSignOutAlt } from 'react-icons/fa';
-import 'boxicons/css/boxicons.min.css'; // Import Boxicons CSS
+import { FaSignOutAlt, FaExchangeAlt } from 'react-icons/fa';
+import { toast } from 'react-toastify';
+import 'boxicons/css/boxicons.min.css';
 
 import { logoutAdmin } from '../../../redux/slices/authSlice';
+import { clearCurrentCart } from '../../../redux/slices/cartSlice';
 import './Navbar.css';
+
+// Confirmation Dialog Component
+const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="confirm-dialog-overlay">
+      <div className="confirm-dialog">
+        <h3 className="confirm-dialog-title">{title}</h3>
+        <p className="confirm-dialog-message">{message}</p>
+        <div className="confirm-dialog-actions">
+          <button className="btn btn-secondary" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={onConfirm}>
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Navbar = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector(state => state.auth);
-  const { currentCart } = useSelector(state => state.cart);
-  
+  const { currentCart, currentCartItems } = useSelector(state => state.cart);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+
   // Check if current path is the homepage
   const isHomePage = location.pathname === '/';
   
   // Check if current path is an admin path
   const isAdminPath = location.pathname.includes('/admin');
-  
+
   const handleLogout = () => {
     dispatch(logoutAdmin());
+    navigate('/');
+  };
+
+  const handleChangeCartClick = () => {
+    if (currentCartItems && currentCartItems.length > 0) {
+      setShowConfirmation(true);
+    } else {
+      navigateToCartEntry();
+    }
+  };
+
+  const navigateToCartEntry = () => {
+    dispatch(clearCurrentCart());
     navigate('/');
   };
 
@@ -83,7 +121,7 @@ const Navbar = () => {
     );
   }
   
-  // For cart pages, show user navigation
+  // For cart pages, show only a Change Cart button
   return (
     <nav className="navbar user-navbar">
       <div className="navbar-container">
@@ -91,24 +129,32 @@ const Navbar = () => {
           ShopScan POS
         </Link>
         
-        <ul className="navbar-menu">
-          {currentCart && (
-            <>
-              <li className="navbar-item">
-                <Link to={`/cart/${currentCart.cartId}`} className="navbar-link">
-                  <FaShoppingCart className="navbar-icon" />
-                  View Cart
-                </Link>
-              </li>
-              <li className="navbar-item">
-                <Link to="/" className="navbar-link">
-                  Change Cart
-                </Link>
-              </li>
-            </>
-          )}
-        </ul>
+        {currentCart && (
+          <ul className="navbar-menu">
+            <li className="navbar-item">
+              <button
+                className="navbar-button change-cart-btn"
+                onClick={handleChangeCartClick}
+              >
+                <FaExchangeAlt className="navbar-icon" />
+                Change Cart
+              </button>
+            </li>
+          </ul>
+        )}
       </div>
+
+      {/* Confirmation Dialog for changing cart with items */}
+      <ConfirmDialog
+        isOpen={showConfirmation}
+        title="Change Cart"
+        message="Please clear your cart first before changing to a new cart. All items must be removed from the current cart."
+        onConfirm={() => {
+          setShowConfirmation(false);
+          toast.warning('Please use the "Clear All" button to empty your cart first');
+        }}
+        onCancel={() => setShowConfirmation(false)}
+      />
     </nav>
   );
 };

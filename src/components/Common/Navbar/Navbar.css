@@ -56,7 +56,17 @@
   font-size: 0.95rem;
   display: flex;
   align-items: center;
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+}
+
+.change-cart-btn {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.change-cart-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25);
 }
 
 .navbar-icon {
@@ -64,12 +74,72 @@
   font-size: 1rem;
 }
 
-/* Mobile Optimizations */
-@media screen and (max-width: 480px) {
-  .navbar {
-    height: 50px;
-  }
-  
+/* Admin navbar style */
+.admin-navbar {
+  background-color: #34495e;
+}
+
+/* Confirmation Dialog */
+.confirm-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.confirm-dialog {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+.confirm-dialog-title {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: #2c3e50;
+}
+
+.confirm-dialog-message {
+  margin-bottom: 1.5rem;
+  color: #6c757d;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.confirm-dialog-actions button {
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.confirm-dialog-actions .btn-secondary {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+.confirm-dialog-actions .btn-primary {
+  background-color: #3498db;
+  color: white;
+}
+
+/* Mobile responsiveness */
+@media screen and (max-width: 768px) {
   .navbar-container {
     padding: 0 1rem;
   }
@@ -78,12 +148,12 @@
     font-size: 1.2rem;
   }
   
-  .navbar-link, .navbar-button {
-    font-size: 0.9rem;
+  .navbar-item {
+    margin-left: 0.75rem;
   }
   
-  .navbar-icon {
-    margin-right: 0.35rem;
+  .navbar-button {
     font-size: 0.9rem;
+    padding: 0.4rem 0.6rem;
   }
 }
