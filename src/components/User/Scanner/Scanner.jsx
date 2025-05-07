@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import Quagga from 'quagga';
 import { toast } from 'react-toastify';
 import 'boxicons/css/boxicons.min.css';
+import _ from 'lodash'; // Make sure lodash is installed
 
 import { getProductByBarcode } from '../../../redux/slices/productSlice';
 import { addItemToCart } from '../../../redux/slices/cartSlice';
@@ -17,9 +18,22 @@ const Scanner = ({ cartId }) => {
   const [quantity, setQuantity] = useState(1);
   const [scannerMessage, setScannerMessage] = useState('');
   const [detectionState, setDetectionState] = useState('idle'); // 'idle', 'detecting', 'success'
+  const [isProcessing, setIsProcessing] = useState(false); // New state to track processing
 
   const { currentProduct, loading: productLoading, error: productError } = useSelector(state => state.product);
   const { loading: cartLoading, error: cartError } = useSelector(state => state.cart);
+
+  // Create a debounced version of the product lookup
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const debouncedGetProduct = useCallback(
+    _.debounce((code) => {
+      // Clear previous errors first
+      dispatch({ type: 'product/clearErrors' });
+      dispatch(getProductByBarcode(code));
+      setIsProcessing(false); // End processing state
+    }, 800),
+    [dispatch]
+  );
 
   // Clean up scanner on unmount
   useEffect(() => {
@@ -30,11 +44,17 @@ const Scanner = ({ cartId }) => {
     };
   }, [isScanning]);
 
-  // Handle errors
+  // Handle errors with a delay to prevent UI flashing
   useEffect(() => {
+    let errorTimer;
     if (productError) {
-      toast.error(productError);
+      errorTimer = setTimeout(() => {
+        toast.error(productError);
+      }, 300);
     }
+    return () => {
+      if (errorTimer) clearTimeout(errorTimer);
+    };
   }, [productError]);
 
   useEffect(() => {
@@ -50,6 +70,31 @@ const Scanner = ({ cartId }) => {
       setScannerMessage('');
     }
   }, [isScanning]);
+
+  // Handle successful product fetch
+  useEffect(() => {
+    if (currentProduct && !productLoading && barcode) {
+      toast.success('Product found!');
+    }
+  }, [currentProduct, productLoading, barcode]);
+
+  const validateBarcode = (code) => {
+    // Basic validation: most barcodes are at least 8 digits
+    return code && code.length >= 8 && /^\d+$/.test(code);
+  };
+
+  const handleProductLookup = (code) => {
+    if (!validateBarcode(code)) {
+      toast.error('Invalid barcode format');
+      return;
+    }
+    
+    if (isProcessing) return; // Prevent duplicate processing
+    
+    setIsProcessing(true);
+    setBarcode(code);
+    debouncedGetProduct(code);
+  };
 
   const startScanner = () => {
     if (isScanning) return;
@@ -67,10 +112,11 @@ const Scanner = ({ cartId }) => {
         },
       },
       locator: {
-        patchSize: "medium",
+        patchSize: "large", // Changed from medium to large for better detection
         halfSample: true
       },
-      numOfWorkers: navigator.hardwareConcurrency || 4,
+      numOfWorkers: navigator.hardwareConcurrency || 2,
+      frequency: 10, // Lower frequency for more accurate scans
       decoder: {
         readers: ["ean_reader", "ean_8_reader", "code_128_reader", "code_39_reader", "upc_reader"],
         debug: {
@@ -78,7 +124,8 @@ const Scanner = ({ cartId }) => {
           showFrequency: false,
           drawScanline: true,
           showPattern: true
-        }
+        },
+        multiple: false // Ensure we only get one result
       },
       locate: true
     }, (err) => {
@@ -107,22 +154,35 @@ const Scanner = ({ cartId }) => {
         }
       });
       
+      // Track detection attempts and only accept high-confidence readings
+      let consecutiveDetections = {};
+      let detectionThreshold = 3; // Require 3 identical detections before accepting
+      
       Quagga.onDetected((result) => {
-        if (result && result.codeResult) {
+        if (result && result.codeResult && !isProcessing) {
           const code = result.codeResult.code;
           
-          // Show success state
-          setDetectionState('success');
-          setScannerMessage(`Barcode read successfully: ${code}`);
+          // Count identical detections to ensure accuracy
+          consecutiveDetections[code] = (consecutiveDetections[code] || 0) + 1;
           
-          // Stop scanning after successful detection
-          setTimeout(() => {
-            stopScanner();
-            
-            // Set barcode and find product
-            setBarcode(code);
-            dispatch(getProductByBarcode(code));
-          }, 500); // Short delay to see success state
+          if (consecutiveDetections[code] >= detectionThreshold) {
+            // Only process if not already processing and barcode is valid
+            if (validateBarcode(code)) {
+              // Show success state
+              setDetectionState('success');
+              setScannerMessage(`Barcode read successfully: ${code}`);
+              
+              // Process after a delay to give user feedback
+              setTimeout(() => {
+                stopScanner();
+                handleProductLookup(code);
+              }, 1200); // Increased delay for visual feedback
+            } else {
+              setDetectionState('idle');
+              setScannerMessage('Invalid barcode, please try again');
+              consecutiveDetections = {}; // Reset detection count
+            }
+          }
         }
       });
     });
@@ -143,7 +203,7 @@ const Scanner = ({ cartId }) => {
       return;
     }
     
-    dispatch(getProductByBarcode(barcode.trim()));
+    handleProductLookup(barcode.trim());
   };
 
   const handleQuantityChange = (e) => {
@@ -181,6 +241,14 @@ const Scanner = ({ cartId }) => {
       });
   };
 
+  // Function to clear current errors and retry
+  const handleRetry = () => {
+    if (barcode) {
+      dispatch({ type: 'product/clearErrors' });
+      dispatch(getProductByBarcode(barcode));
+    }
+  };
+
   return (
     <div className="scanner-container">
       <div className="scanner-modes">
@@ -208,7 +276,7 @@ const Scanner = ({ cartId }) => {
           >
             {!isScanning && (
               <div className="scanner-placeholder">
-                <i className='bx bx-barcode'></i>
+                <i className='bx bx-barcode placeholder-icon'></i>
                 <p>Camera feed will appear here</p>
               </div>
             )}
@@ -232,6 +300,7 @@ const Scanner = ({ cartId }) => {
               <button 
                 className="btn btn-secondary scanner-btn" 
                 onClick={stopScanner}
+                disabled={isProcessing}
               >
                 <i className='bx bx-stop'></i> Stop Scanner
               </button>
@@ -239,6 +308,7 @@ const Scanner = ({ cartId }) => {
               <button 
                 className="btn btn-primary scanner-btn" 
                 onClick={startScanner}
+                disabled={isProcessing}
               >
                 <i className='bx bx-scan'></i> Start Scanner
               </button>
@@ -267,11 +337,37 @@ const Scanner = ({ cartId }) => {
             <button 
               type="submit" 
               className="btn btn-primary manual-submit-btn" 
-              disabled={productLoading}
+              disabled={productLoading || isProcessing}
             >
               {productLoading ? 'Searching...' : 'Find Product'}
             </button>
           </form>
+        </div>
+      )}
+
+      {/* Error handling with retry option */}
+      {productError && barcode && (
+        <div className="product-error">
+          <div className="error-message">
+            <p><i className='bx bx-error-circle'></i> {productError}</p>
+            <div className="error-actions">
+              <button 
+                className="btn btn-outline-warning retry-btn" 
+                onClick={handleRetry}
+              >
+                <i className='bx bx-refresh'></i> Retry Lookup
+              </button>
+              <button 
+                className="btn btn-outline-secondary" 
+                onClick={() => {
+                  dispatch({ type: 'product/clearErrors' });
+                  setBarcode('');
+                }}
+              >
+                <i className='bx bx-x'></i> Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

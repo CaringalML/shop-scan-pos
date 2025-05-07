@@ -18,6 +18,9 @@ const initialState = {
   currentProduct: null,
   loading: false,
   error: null,
+  lastScannedBarcode: null,
+  scanHistory: [],
+  processingBarcode: false,
 };
 
 // Fetch all products
@@ -127,17 +130,31 @@ export const deleteProduct = createAsyncThunk(
   }
 );
 
-// Get product by barcode
+// Get product by barcode with improved error handling and retry mechanism
 export const getProductByBarcode = createAsyncThunk(
   'product/getProductByBarcode',
-  async (barcode, { rejectWithValue }) => {
+  async (barcode, { rejectWithValue, getState }) => {
     try {
+      // Check if we're already processing this barcode to prevent duplicates
+      const state = getState();
+      if (state.product.processingBarcode === barcode) {
+        return rejectWithValue('Already processing this barcode');
+      }
+      
+      // Basic barcode validation
+      if (!barcode || barcode.length < 8 || !/^\d+$/.test(barcode)) {
+        return rejectWithValue('Invalid barcode format');
+      }
+
+      // Add a small delay to ensure the Firebase query has time to complete
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
       const productsCollection = collection(db, 'products');
       const q = query(productsCollection, where('barcode', '==', barcode));
       const querySnapshot = await getDocs(q);
       
       if (querySnapshot.empty) {
-        return rejectWithValue('Product not found');
+        return rejectWithValue(`Product with barcode ${barcode} not found`);
       }
       
       const productDoc = querySnapshot.docs[0];
@@ -147,8 +164,20 @@ export const getProductByBarcode = createAsyncThunk(
         ...productDoc.data(),
       };
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.message || 'Error finding product');
     }
+  }
+);
+
+// Retry product lookup - new thunk for explicit retries
+export const retryProductLookup = createAsyncThunk(
+  'product/retryProductLookup',
+  async (barcode, { dispatch, getState }) => {
+    // Clear any existing errors first
+    dispatch(clearProductError());
+    
+    // Then try the lookup again
+    return dispatch(getProductByBarcode(barcode));
   }
 );
 
@@ -163,6 +192,10 @@ const productSlice = createSlice({
     clearCurrentProduct: (state) => {
       state.currentProduct = null;
     },
+    // New reducer to track scan attempts
+    trackScanAttempt: (state, action) => {
+      state.lastScannedBarcode = action.payload;
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -225,22 +258,49 @@ const productSlice = createSlice({
         state.error = action.payload;
       })
       
-      // Get product by barcode
-      .addCase(getProductByBarcode.pending, (state) => {
+      // Get product by barcode - improved with processing states
+      .addCase(getProductByBarcode.pending, (state, action) => {
         state.loading = true;
+        state.error = null;
+        state.processingBarcode = action.meta.arg; // Store the barcode being processed
       })
       .addCase(getProductByBarcode.fulfilled, (state, action) => {
         state.currentProduct = action.payload;
         state.loading = false;
         state.error = null;
+        state.processingBarcode = false;
+        
+        // Add to scan history (storing the last 10 successful scans)
+        if (action.payload && action.payload.id) {
+          const existingIndex = state.scanHistory.findIndex(
+            item => item.id === action.payload.id
+          );
+          
+          if (existingIndex !== -1) {
+            // Move to top if already exists
+            state.scanHistory.splice(existingIndex, 1);
+          }
+          
+          // Add to beginning of history
+          state.scanHistory.unshift({
+            id: action.payload.id,
+            barcode: action.payload.barcode,
+            name: action.payload.name,
+            timestamp: new Date().toISOString()
+          });
+          
+          // Keep only the last 10 items
+          state.scanHistory = state.scanHistory.slice(0, 10);
+        }
       })
       .addCase(getProductByBarcode.rejected, (state, action) => {
         state.currentProduct = null;
         state.loading = false;
         state.error = action.payload;
+        state.processingBarcode = false;
       });
   },
 });
 
-export const { clearProductError, clearCurrentProduct } = productSlice.actions;
+export const { clearProductError, clearCurrentProduct, trackScanAttempt } = productSlice.actions;
 export default productSlice.reducer;

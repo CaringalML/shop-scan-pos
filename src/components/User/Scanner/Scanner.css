@@ -296,6 +296,88 @@
   justify-content: center;
 }
 
+/* NEW: Product Error Styles */
+.product-error {
+  background-color: #fff8f8;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--box-shadow-sm);
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  border-left: 4px solid #ff5555;
+}
+
+.error-message {
+  margin-bottom: 1rem;
+}
+
+.error-message p {
+  color: #d32f2f;
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.error-message p i {
+  margin-right: 0.5rem;
+  font-size: 1.2rem;
+}
+
+.error-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.retry-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.retry-btn i {
+  margin-right: 0.5rem;
+}
+
+/* Processing state indicator */
+.scanner-view.processing::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.scanner-view.processing::before {
+  content: "Processing...";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 10px 20px;
+  border-radius: 20px;
+  z-index: 21;
+}
+
+/* Toast notification enhancement */
+.Toastify__toast {
+  border-radius: var(--border-radius-md);
+}
+
+.Toastify__toast--success {
+  background-color: var(--color-success);
+}
+
+.Toastify__toast--error {
+  background-color: var(--color-danger);
+}
+
 /* Mobile Optimizations */
 @media screen and (max-width: 576px) {
   .scanner-view {
@@ -358,5 +440,9 @@
   
   .scanner-btn i {
     font-size: 1rem;
+  }
+  
+  .error-actions {
+    flex-direction: column;
   }
 }
