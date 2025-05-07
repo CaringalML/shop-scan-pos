@@ -46,7 +46,7 @@ const Scanner = ({ cartId }) => {
   const { loading: cartLoading, error: cartError } = useSelector(state => state.cart);
 
   // Configure supported barcode formats
-  const supportedFormats = [
+  const supportedFormats = useMemo(() => [
     'ean_13',
     'ean_8',
     'upc_a',
@@ -58,7 +58,7 @@ const Scanner = ({ cartId }) => {
     'data_matrix',
     'aztec',
     'pdf417'
-  ];
+  ], []);
 
   // Track detected barcodes for confidence thresholding
   const [barcodeOccurrences, setBarcodeOccurrences] = useState({});
@@ -118,7 +118,7 @@ const Scanner = ({ cartId }) => {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [supportedFormats]); // Added supportedFormats as dependency
+  }, [supportedFormats, stopMediaTracks]); // Added supportedFormats and stopMediaTracks as dependencies
 
   // Clean up camera on unmount
   useEffect(() => {
@@ -127,7 +127,7 @@ const Scanner = ({ cartId }) => {
         stopScanner();
       }
     };
-  }, [isScanning]);
+  }, [isScanning, stopScanner]);
 
   // Handle errors
   useEffect(() => {
@@ -288,7 +288,7 @@ const Scanner = ({ cartId }) => {
         animationFrameRef.current = requestAnimationFrame(processBarcodes);
       }
     }
-  }, [isScanning, detectorRef, videoRef, canvasRef, barcodeOccurrences, confidenceThreshold, isProcessing, handleProductLookup]); // Added dependencies
+  }, [isScanning, detectorRef, videoRef, canvasRef, barcodeOccurrences, confidenceThreshold, isProcessing, handleProductLookup, detectionState, stopScanner]); // Added dependencies
 
   const startScanner = useCallback(async () => {
     if (isScanning || !isSupportedDevice) return;
@@ -352,7 +352,7 @@ const Scanner = ({ cartId }) => {
         context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       }
     }
-  }, [isScanning]); // Added isScanning as dependency
+  }, [isScanning, stopScanner]); // Added isScanning and stopScanner as dependencies
 
   const handleManualSubmit = (e) => {
     e.preventDefault();
