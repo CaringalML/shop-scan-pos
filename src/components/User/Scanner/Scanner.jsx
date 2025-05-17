@@ -63,12 +63,20 @@ const Scanner = ({ cartId }) => {
   // Product lookup function
   // Product lookup function
   const handleProductLookup = useCallback((code) => {
+    // Check if this product is already displayed
+    if (currentProduct && currentProduct.barcode === code) {
+      console.log("Product already displayed, skipping lookup");
+      setIsProcessing(false);
+      return;
+    }
+    
     // Prevent processing duplicate barcodes within a short time period
     const lastProcessedTime = window.localStorage.getItem('lastProcessedTime');
     const now = Date.now();
     
     if (lastProcessedTime && (now - parseInt(lastProcessedTime)) < 3000) {
       console.log("Ignoring rapid duplicate scan");
+      setIsProcessing(false);
       return;
     }
     
@@ -81,6 +89,7 @@ const Scanner = ({ cartId }) => {
         toastId: 'invalid-barcode',
         autoClose: 3000
       });
+      setIsProcessing(false);
       return;
     }
 
@@ -89,7 +98,7 @@ const Scanner = ({ cartId }) => {
     setIsProcessing(true);
     setBarcode(code);
     debouncedGetProduct(code);
-  }, [validateBarcode, isProcessing, debouncedGetProduct]);
+  }, [validateBarcode, isProcessing, debouncedGetProduct, currentProduct]);
 
   // Stop scanner function
   const stopScanner = useCallback(() => {
@@ -118,6 +127,13 @@ const Scanner = ({ cartId }) => {
 
     setDetectionState('detecting');
     setScannerMessage(`Barcode detected: ${code} (${format})`);
+
+    // Check if a product is already displayed with this barcode
+    if (currentProduct && currentProduct.barcode === code) {
+      setDetectionState('success');
+      setScannerMessage(`Product already displayed`);
+      return; // Skip processing if product is already displayed
+    }
 
     // Track occurrences for confidence
     setBarcodeDetections(prev => {
@@ -149,7 +165,7 @@ const Scanner = ({ cartId }) => {
 
       return newOccurrences;
     });
-  }, [confidenceThreshold, isProcessing, stopScanner, handleProductLookup]);
+  }, [confidenceThreshold, isProcessing, stopScanner, handleProductLookup, currentProduct]);
 
   // Handle barcode processing (highlighting detection boxes)
   const handleBarcodeProcessed = useCallback((result) => {
@@ -376,6 +392,14 @@ const Scanner = ({ cartId }) => {
     }
   };
 
+  const clearCurrentProduct = useCallback(() => {
+    dispatch({ type: 'product/clearCurrentProduct' });
+    setBarcode('');
+    setQuantity(1);
+    // Also clear the last processed barcode when clearing current product
+    window.localStorage.removeItem('lastProcessedBarcode');
+  }, [dispatch]);
+
   const handleAddToCart = () => {
     if (!currentProduct) return;
 
@@ -396,11 +420,8 @@ const Scanner = ({ cartId }) => {
           toastId: 'add-to-cart-success',
           autoClose: 2000
         });
-        // Reset form for next scan
-        setBarcode('');
-        setQuantity(1);
-        // Clear current product
-        dispatch({ type: 'product/clearCurrentProduct' });
+        // Reset for next scan
+        clearCurrentProduct();
       })
       .catch((err) => {
         // Dismiss any existing toasts before showing error
