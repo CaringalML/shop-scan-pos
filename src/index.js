@@ -28,7 +28,19 @@ root.render(
     <Provider store={store}>
       <BrowserRouter>
         <App />
-        <ToastContainer position="bottom-right" />
+        <ToastContainer 
+          position="top-center"
+          autoClose={2000}
+          hideProgressBar={false}
+          newestOnTop={true}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss={false}
+          draggable
+          pauseOnHover={false}
+          limit={1} // Only display one toast at a time
+          theme="colored"
+        />
       </BrowserRouter>
     </Provider>
   </React.StrictMode>

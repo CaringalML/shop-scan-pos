@@ -40,6 +40,9 @@ const Scanner = ({ cartId }) => {
   const debouncedGetProduct = useCallback(
     // Use an inline function as recommended by ESLint
     (code) => {
+      // Clear existing toasts to prevent stacking
+      toast.dismiss();
+      
       const debouncedFn = _.debounce((codeToLookup) => {
         // Clear previous errors first
         dispatch({ type: 'product/clearErrors' });
@@ -60,7 +63,12 @@ const Scanner = ({ cartId }) => {
   // Product lookup function
   const handleProductLookup = useCallback((code) => {
     if (!validateBarcode(code)) {
-      toast.error('Invalid barcode format');
+      // Dismiss any existing toasts before showing error
+      toast.dismiss();
+      toast.error('Invalid barcode format', {
+        toastId: 'invalid-barcode',
+        autoClose: 3000
+      });
       return;
     }
 
@@ -262,13 +270,23 @@ const Scanner = ({ cartId }) => {
   // Handle errors
   useEffect(() => {
     if (productError) {
-      toast.error(productError);
+      // Dismiss any existing toasts before showing error
+      toast.dismiss();
+      toast.error(productError, {
+        toastId: 'product-error', // Add a unique ID to prevent duplicates
+        autoClose: 3000
+      });
     }
   }, [productError]);
 
   useEffect(() => {
     if (cartError) {
-      toast.error(cartError);
+      // Dismiss any existing toasts before showing error
+      toast.dismiss();
+      toast.error(cartError, {
+        toastId: 'cart-error', // Add a unique ID to prevent duplicates
+        autoClose: 3000
+      });
     }
   }, [cartError]);
 
@@ -285,7 +303,12 @@ const Scanner = ({ cartId }) => {
   // Handle successful product fetch
   useEffect(() => {
     if (currentProduct && !productLoading && barcode) {
-      toast.success('Product found!');
+      // Dismiss any existing toasts before showing success
+      toast.dismiss();
+      toast.success('Product found!', {
+        toastId: 'product-found', // Add a unique ID to prevent duplicates
+        autoClose: 2000 // Auto close after 2 seconds
+      });
     }
   }, [currentProduct, productLoading, barcode]);
 
@@ -293,7 +316,12 @@ const Scanner = ({ cartId }) => {
     e.preventDefault();
 
     if (!barcode.trim()) {
-      toast.error('Please enter a barcode');
+      // Dismiss any existing toasts before showing error
+      toast.dismiss();
+      toast.error('Please enter a barcode', {
+        toastId: 'empty-barcode',
+        autoClose: 3000
+      });
       return;
     }
 
@@ -323,7 +351,12 @@ const Scanner = ({ cartId }) => {
     dispatch(addItemToCart({ cartId, itemData }))
       .unwrap()
       .then(() => {
-        toast.success(`Added ${currentProduct.name} to cart`);
+        // Dismiss any existing toasts before showing success
+        toast.dismiss();
+        toast.success(`Added ${currentProduct.name} to cart`, {
+          toastId: 'add-to-cart-success',
+          autoClose: 2000
+        });
         // Reset form for next scan
         setBarcode('');
         setQuantity(1);
@@ -331,7 +364,12 @@ const Scanner = ({ cartId }) => {
         dispatch({ type: 'product/clearCurrentProduct' });
       })
       .catch((err) => {
-        toast.error(err);
+        // Dismiss any existing toasts before showing error
+        toast.dismiss();
+        toast.error(err, {
+          toastId: 'add-to-cart-error',
+          autoClose: 3000
+        });
       });
   };
 
