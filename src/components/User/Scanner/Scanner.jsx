@@ -61,7 +61,19 @@ const Scanner = ({ cartId }) => {
   );
 
   // Product lookup function
+  // Product lookup function
   const handleProductLookup = useCallback((code) => {
+    // Prevent processing duplicate barcodes within a short time period
+    const lastProcessedTime = window.localStorage.getItem('lastProcessedTime');
+    const now = Date.now();
+    
+    if (lastProcessedTime && (now - parseInt(lastProcessedTime)) < 3000) {
+      console.log("Ignoring rapid duplicate scan");
+      return;
+    }
+    
+    window.localStorage.setItem('lastProcessedTime', now.toString());
+    
     if (!validateBarcode(code)) {
       // Dismiss any existing toasts before showing error
       toast.dismiss();
@@ -120,7 +132,18 @@ const Scanner = ({ cartId }) => {
         // Stop scanning after a delay for UX feedback
         setTimeout(() => {
           stopScanner();
-          handleProductLookup(code);
+          
+          // Store the last processed code to prevent duplicate processing
+          const lastProcessedBarcode = window.localStorage.getItem('lastProcessedBarcode');
+          
+          // Only process if it's not the same as the last processed code
+          if (lastProcessedBarcode !== code) {
+            window.localStorage.setItem('lastProcessedBarcode', code);
+            handleProductLookup(code);
+          } else {
+            // Reset processing state if we're skipping this code
+            setIsProcessing(false);
+          }
         }, 1000);
       }
 
@@ -245,6 +268,9 @@ const Scanner = ({ cartId }) => {
   const startScanner = useCallback(() => {
     if (isScanning) return;
     
+    // Reset the last processed barcode when starting a new scan session
+    window.localStorage.removeItem('lastProcessedBarcode');
+    
     setIsScanning(true);
     setScannerMessage('Initializing camera...');
     
@@ -254,7 +280,11 @@ const Scanner = ({ cartId }) => {
       console.error('Error starting scanner:', error);
       setIsScanning(false);
       setIsSupportedDevice(false);
-      toast.error('Failed to start the barcode scanner');
+      toast.dismiss();
+      toast.error('Failed to start the barcode scanner', {
+        toastId: 'scanner-error',
+        autoClose: 3000
+      });
     }
   }, [isScanning, initQuagga]);
 
@@ -300,15 +330,24 @@ const Scanner = ({ cartId }) => {
     }
   }, [isScanning]);
 
-  // Handle successful product fetch
+  // Handle successful product fetch with debounce to prevent multiple notifications
+  const lastToastTimeRef = useRef(0);
+  
   useEffect(() => {
     if (currentProduct && !productLoading && barcode) {
-      // Dismiss any existing toasts before showing success
-      toast.dismiss();
-      toast.success('Product found!', {
-        toastId: 'product-found', // Add a unique ID to prevent duplicates
-        autoClose: 2000 // Auto close after 2 seconds
-      });
+      // Check if enough time has passed since the last toast (at least 3 seconds)
+      const now = Date.now();
+      if (now - lastToastTimeRef.current > 3000) {
+        // Dismiss any existing toasts before showing success
+        toast.dismiss();
+        toast.success('Product found!', {
+          toastId: 'product-found', // Add a unique ID to prevent duplicates
+          autoClose: 2000 // Auto close after 2 seconds
+        });
+        
+        // Update the last toast time
+        lastToastTimeRef.current = now;
+      }
     }
   }, [currentProduct, productLoading, barcode]);
 
