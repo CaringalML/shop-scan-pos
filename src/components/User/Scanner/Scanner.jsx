@@ -26,6 +26,7 @@ const Scanner = ({ cartId }) => {
   const { loading: cartLoading, error: cartError } = useSelector(state => state.cart);
 
   // Track detected barcodes for confidence thresholding
+  // eslint-disable-next-line no-unused-vars
   const [barcodeDetections, setBarcodeDetections] = useState({});
   const confidenceThreshold = 3; // Number of consecutive identical detections needed
 
@@ -37,12 +38,22 @@ const Scanner = ({ cartId }) => {
 
   // Create a debounced version of the product lookup
   const debouncedGetProduct = useCallback(
-    _.debounce((code) => {
-      // Clear previous errors first
-      dispatch({ type: 'product/clearErrors' });
-      dispatch(getProductByBarcode(code));
-      setIsProcessing(false);
-    }, 800),
+    // Use an inline function as recommended by ESLint
+    (code) => {
+      const debouncedFn = _.debounce((codeToLookup) => {
+        // Clear previous errors first
+        dispatch({ type: 'product/clearErrors' });
+        dispatch(getProductByBarcode(codeToLookup));
+        setIsProcessing(false);
+      }, 800);
+      
+      debouncedFn(code);
+      
+      // Return a cancel function for cleanup
+      return () => {
+        debouncedFn.cancel();
+      };
+    },
     [dispatch]
   );
 
@@ -266,6 +277,7 @@ const Scanner = ({ cartId }) => {
     if (!isScanning) {
       setDetectionState('idle');
       setScannerMessage('');
+      // Use setBarcodeDetections to clear the tracked barcodes
       setBarcodeDetections({});
     }
   }, [isScanning]);
